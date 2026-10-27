@@ -19,6 +19,15 @@ def test_runs_a_file():
     assert completed.stderr == ""
 
 
+def test_tab_escape_prints_a_tab(tmp_path: Path):
+    program = tmp_path / "tab.slop"
+    program.write_text("hallucinate(“name\\tscore”)✨\n", encoding="utf-8")
+    completed = run_cli(str(program))
+    assert completed.returncode == 0
+    assert completed.stdout == "name\tscore\n"
+    assert completed.stderr == ""
+
+
 def test_error_goes_to_stderr_after_earlier_output(tmp_path: Path):
     program = tmp_path / "boom.slop"
     program.write_text("hallucinate(“before”)✨\nhallucinate(missing)✨\n", encoding="utf-8")
