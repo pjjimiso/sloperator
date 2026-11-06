@@ -18,7 +18,7 @@ clanker describe(count) {
     }
 }
 
-slop MAX = 3✨
+loadbearing MAX = 3✨
 slop count = 0✨
 
 ralph count < MAX {
@@ -34,6 +34,7 @@ Prints `small slop` twice, then `big slop`.
 | SlopLang      | Conventional | Meaning                                                 |
 | ------------- | ------------ | ------------------------------------------------------- |
 | `slop`        | `let`        | Declare a mutable variable                              |
+| `loadbearing` | `const`      | Declare an immutable binding with a literal initializer |
 | `clanker`     | `fn`         | Define a function                                       |
 | `vibe`        | `if`         | Conditional                                             |
 | `nah`         | `else`       | Else branch                                             |
@@ -70,18 +71,37 @@ No implicit conversions.
 
 ## Variables
 
-`slop` declares a mutable variable and requires an initializer. A scope cannot declare a name twice, but an inner block may shadow an outer name.
+`slop` declares a mutable variable. `loadbearing` declares an immutable binding. Both require an initializer and a trailing `✨`, and follow the same scoping rules. A scope cannot declare a name twice, including combinations of `slop`, `loadbearing`, function names, and parameters, but an inner block may shadow an outer name with either declaration. Parameters remain mutable, even when passed a `loadbearing` value.
 
 ```slop
 slop score = 10✨
-slop LIMIT = 100✨
+loadbearing LIMIT = 100✨
 score = score + 5✨
 score = score + 1✨
 ```
 
-Assignment is a statement, not an expression: `name = expression✨`. It updates the nearest existing `slop` variable. Reading or assigning an undefined name is a runtime error.
+Assignment is a statement, not an expression: `name = expression✨`. It resolves the nearest existing binding and updates it if mutable. Assigning to a `loadbearing` binding, even with the same value, is a runtime error: `cannot assign to loadbearing 'NAME'` (the actual name replaces `NAME`, surrounded by single quotes). The right-hand side is evaluated before the assignment is rejected, so its side effects occur and its errors take precedence. Reading or assigning an undefined name is a runtime error.
 
 Every brace block is a lexical scope. Assignment searches the current scope, then each enclosing scope.
+
+### Loadbearing Initializers
+
+Only number, string, and boolean literals are allowed, plus a single unary `-` directly applied to a number literal. Whitespace between `-` and the number is allowed. There is no nil literal.
+
+```slop
+loadbearing LIMIT = 100✨
+loadbearing OFFSET = -42✨
+loadbearing LABEL = “ready”✨
+loadbearing ENABLED = ✅✨
+```
+
+Parenthesized literals (`(42)`, `(-42)`), `-(42)`, repeated negation (`--42`), arithmetic and other operator expressions, name references (including other `loadbearing` names), and function calls are invalid initializers. Functions and nil cannot initialize `loadbearing` bindings.
+
+This restriction is checked at runtime only when execution reaches the declaration, before evaluating its initializer. Invalid initializers produce `loadbearing initializer must be a literal or a negative number`, without executing any part of the initializer. Invalid declarations in unexecuted branches or uncalled functions do not cause a runtime error. Lexical and syntax errors, such as missing initializers or terminators, are still detected before execution.
+
+Initializer validation and evaluation precede the same-scope duplicate-name check. A `slop` initializer can still read an outer binding it is about to shadow. Each executed declaration creates a binding in the current scope; `loadbearing` adds no hoisting or separate constant scope.
+
+`loadbearing` is a case-sensitive reserved keyword and cannot be used as a variable, function, or parameter name. Names such as `loadbearing_value` remain valid identifiers.
 
 ## Control Flow
 
@@ -152,7 +172,7 @@ functionDecl   -> "clanker" IDENTIFIER "(" parameters? ")" block ;
 parameters     -> IDENTIFIER ( "," IDENTIFIER )* ;
 
 declaration    -> variableDecl | statement ;
-variableDecl   -> "slop" IDENTIFIER "=" expression "✨" ;
+variableDecl   -> ( "slop" | "loadbearing" ) IDENTIFIER "=" expression "✨" ;
 
 statement      -> assignStmt | ifStmt | loopStmt | returnStmt
                 | block | expressionStmt ;
@@ -178,6 +198,8 @@ primary        -> NUMBER | STRING | "✅" | "❌"
 ```
 
 ## Errors
+
+The grammar accepts an expression in either declaration form. The literal-only restriction for `loadbearing` is enforced during execution as described above, not during parsing.
 
 The interpreter stops at the first lexical, syntax, or runtime error, writes the diagnostic to stderr, exits with status `1`, and never shows a Python traceback. Output produced before a runtime error stays on stdout.
 

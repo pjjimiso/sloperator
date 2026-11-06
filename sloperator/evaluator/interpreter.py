@@ -60,8 +60,12 @@ class Interpreter:
     def execute(self, statement: Stmt) -> None:
         match statement:
             case VarDecl(name, initializer, mutable):
+                if not mutable:
+                    self.validate_loadbearing_initializer(initializer)
                 value = self.evaluate(initializer)
-                self.environment.declare(name.lexeme, value, mutable, name.line)
+                self.environment.declare(
+                    name.lexeme, value, mutable, name.line, loadbearing=not mutable
+                )
             case Assign(name, _, value_expr):
                 value = self.evaluate(value_expr)
                 self.environment.assign(name.lexeme, value, name.line)
@@ -84,6 +88,18 @@ class Interpreter:
                 self.environment.declare(name.lexeme, SlopFunction(statement), False, name.line)
             case _:
                 raise NotImplementedError(f"unknown statement {statement!r}")
+
+    def validate_loadbearing_initializer(self, initializer: Expr) -> None:
+        match initializer:
+            case Literal():
+                return
+            case Unary(operator, Literal(value, _)) if (
+                operator.type is TokenType.MINUS and is_number(value)
+            ):
+                return
+        raise SlopRuntimeError(
+            initializer.line, "loadbearing initializer must be a literal or a negative number"
+        )
 
     def execute_block(self, block: Block, environment: Environment) -> None:
         previous = self.environment

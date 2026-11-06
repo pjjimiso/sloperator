@@ -10,6 +10,16 @@ Files use the `.slop` extension and run with:
 uv run sloperator.py path/to/program.slop
 ```
 
+Check a file's syntax without executing it:
+
+```bash
+uv run sloperator.py --check path/to/program.slop
+```
+
+`--check` produces no output on success and exits with code 0. Lexical or syntax
+errors are reported on stderr with exit code 1; usage and file-read errors use
+exit code 2. Runtime errors are not checked.
+
 ### Example
 
 ```slop
@@ -22,7 +32,7 @@ clanker describe(count) {
     }
 }
 
-slop MAX = 3✨
+loadbearing MAX = 3✨
 slop count = 0✨
 
 ralph count < MAX {
@@ -38,6 +48,7 @@ Prints `small slop` twice, then `big slop`.
 | SlopLang      | Conventional | Meaning                                                 |
 | ------------- | ------------ | ------------------------------------------------------- |
 | `slop`        | `let`        | Declare a mutable variable                              |
+| `loadbearing` | `const`      | Declare an immutable binding with a literal initializer |
 | `clanker`     | `fn`         | Define a function                                       |
 | `vibe`        | `if`         | Conditional                                             |
 | `nah`         | `else`       | Else branch                                             |
@@ -74,16 +85,18 @@ No implicit conversions.
 
 ### Variables
 
-`slop` declares a mutable variable and requires an initializer. A scope cannot declare a name twice, but an inner block may shadow an outer name.
+`slop` declares a mutable variable; `loadbearing` declares an immutable binding. Both require an initializer. A scope cannot declare a name twice, but an inner block may shadow an outer name with either declaration.
 
 ```slop
 slop score = 10✨
-slop LIMIT = 100✨
+loadbearing LIMIT = 100✨
 score = score + 5✨
 score = score + 1✨
 ```
 
-Assignment is a statement, not an expression: `name = expression✨`. It updates the nearest existing `slop` variable. Reading or assigning an undefined name is a runtime error.
+Assignment is a statement, not an expression: `name = expression✨`. It resolves the nearest existing binding and updates it if mutable. Assigning to a `loadbearing` binding is a runtime error: `cannot assign to loadbearing 'NAME'`. The right-hand side runs before assignment is rejected. Reading or assigning an undefined name is a runtime error.
+
+`loadbearing` accepts only number, string, and boolean literals, or a single minus applied directly to a number literal (`-42`). Parentheses, name references, operator expressions, and function calls are rejected when execution reaches the declaration, without evaluating the initializer. `loadbearing` is reserved and cannot be used as an identifier. See [the specification](docs/spec.md#loadbearing-initializers) for full rules.
 
 Every brace block is a lexical scope. Assignment searches the current scope, then each enclosing scope.
 

@@ -64,6 +64,21 @@ def test_slop_declaration():
     assert isinstance(declaration, VarDecl) and declaration.mutable
 
 
+@pytest.mark.parametrize("initializer", ["42", "-42", "(42)", "1 + 2", "f()"])
+def test_loadbearing_declaration_defers_initializer_validation(initializer: str):
+    (declaration,) = parse_source(f"loadbearing a = {initializer}✨")
+    assert isinstance(declaration, VarDecl) and not declaration.mutable
+
+
+@pytest.mark.parametrize(
+    "source",
+    ["slop loadbearing = 1✨", "clanker loadbearing() {}", "clanker f(loadbearing) {}"],
+)
+def test_loadbearing_cannot_be_used_as_a_name(source: str):
+    with pytest.raises(SlopSyntaxError, match="found 'loadbearing'"):
+        parse_source(source)
+
+
 def test_control_flow_shapes():
     (conditional, loop) = parse_source("vibe ✅ { } nah { } ralph ❌ { }")
     assert isinstance(conditional, If) and conditional.else_branch is not None
@@ -86,6 +101,17 @@ def test_function_declaration():
         ("clanker f() { ship✨ }", 1, "expected an expression, found '✨'"),
         ("slop x = 1", 1, "expected ✨ after variable declaration, but reached end of file"),
         ("slop x✨", 1, "expected '=' after variable name, an initializer is required, found '✨'"),
+        (
+            "loadbearing x✨",
+            1,
+            "expected '=' after variable name, an initializer is required, found '✨'",
+        ),
+        ("loadbearing x = ✨", 1, "expected an expression, found '✨'"),
+        (
+            "loadbearing x = 1",
+            1,
+            "expected ✨ after variable declaration, but reached end of file",
+        ),
         ("vibe ✅ { } nah hallucinate()✨", 1, "expected '{' after nah, found 'hallucinate'"),
         ("vibe ✅ hallucinate()✨", 1, "expected '{' after vibe condition, found 'hallucinate'"),
         ("f(1,)✨", 1, "expected an expression, found ')'"),

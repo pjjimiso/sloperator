@@ -177,4 +177,4 @@ def is_identifier_start(ch: str) -> bool:
 
 
 def is_identifier_char(ch: str) -> bool:
-    return is_identifier_start(ch)
+    return is_identifier_start(ch) or is_digit(ch)

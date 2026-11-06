@@ -47,6 +47,27 @@ def test_hallucinate_is_an_identifier_not_a_keyword():
     assert tokenize("hallucinate")[0].type is TokenType.IDENTIFIER
 
 
+def test_loadbearing_is_a_case_sensitive_keyword_with_identifier_boundaries():
+    assert types("loadbearing loadbearing_x loadbearing1 Loadbearing") == [
+        TokenType.LOADBEARING,
+        TokenType.IDENTIFIER,
+        TokenType.IDENTIFIER,
+        TokenType.IDENTIFIER,
+        TokenType.EOF,
+    ]
+
+
+def test_identifiers_can_contain_digits_after_the_first_character():
+    tokens = tokenize("x1 slop2 _3x 1x")
+    assert [(token.type, token.lexeme) for token in tokens[:-1]] == [
+        (TokenType.IDENTIFIER, "x1"),
+        (TokenType.IDENTIFIER, "slop2"),
+        (TokenType.IDENTIFIER, "_3x"),
+        (TokenType.NUMBER, "1"),
+        (TokenType.IDENTIFIER, "x"),
+    ]
+
+
 def test_string_may_contain_em_dash_and_opening_quote():
     assert tokenize("“x — “y”")[0].literal == "x — “y"
 
