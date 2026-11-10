@@ -77,6 +77,33 @@ def test_tab_escape_is_decoded():
 
 
 @pytest.mark.parametrize(
+    ("source", "line"),
+    [
+        ("\n\n@", 3),
+        ("— comment\n@", 2),
+        ("— first\n\n— third\n@\n", 4),
+        ("slop x = 1✨ — inline comment\n@", 2),
+    ],
+)
+def test_error_line_counts_comments_and_blank_lines(source: str, line: int):
+    with pytest.raises(LexicalError) as info:
+        tokenize(source)
+    assert str(info.value) == f"SlopLang lexical error at line {line}: unexpected character '@'"
+
+
+@pytest.mark.parametrize(
+    ("source", "line"),
+    [
+        ("— comment", 1),
+        ("— comment\n", 2),
+        ("— first\n\n— third\nx", 4),
+    ],
+)
+def test_token_lines_count_comments_and_blank_lines(source: str, line: int):
+    assert all(token.line == line for token in tokenize(source))
+
+
+@pytest.mark.parametrize(
     ("source", "line", "message"),
     [
         ('"hi"', 1, "straight quotes are not supported, use “ and ” for strings"),
